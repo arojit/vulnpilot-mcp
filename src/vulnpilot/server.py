@@ -4,7 +4,14 @@ from mcp.server.fastmcp import FastMCP
 from vulnpilot.models import PackageCheckResult, Ecosystem
 from vulnpilot.osv_client import normalize_vulnerability, query_osv
 
-mcp = FastMCP("VulnPilot")
+mcp = FastMCP(
+    "VulnPilot",
+    instructions=(
+        "Use check_package whenever the user asks about "
+        "known vulnerabilities in a specific dependency version. "
+        "Supported ecosystems are PyPI, npm, and Maven."
+    ),
+)
 
 OSV_ECOSYSTEM_MAPPING = {
     "PyPI": "PyPI",
@@ -27,12 +34,18 @@ async def check_package(
     version: str,
     ecosystem: Ecosystem = "PyPI",
 ) -> PackageCheckResult:
-    """Check a package version for known vulnerabilities using OSV
+    """Check an exact dependency version for known vulnerabilities.
+
+    Use this tool when the user asks whether a Python, npm, Maven,
+    or Gradle dependency version is vulnerable.
+
+    For Gradle JVM dependencies, use the Maven ecosystem and provide
+    the package as groupId:artifactId.
 
     Args:
-        package_name: Name of the package, for example django.
-        version: Exact package version, for example 2.2.0.
-        ecosystem: One of PyPI, npm, Maven or Gradle.
+        package_name: Package name, or groupId:artifactId for Maven. Example: django, org.apache.logging.log4j:log4j-core
+        version: Exact installed dependency version. Example: 2.2.0, 2.14.1
+        ecosystem: One of PyPI, npm, or Maven.
     """
     package_name = package_name.strip()
     version = version.strip()
