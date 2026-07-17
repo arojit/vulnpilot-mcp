@@ -64,7 +64,7 @@ Add the following to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "vulnpilot": {
-      "command": "uv",
+      "command": "/absolute/path/to/uv",
       "args": [
         "--directory", "/absolute/path/to/vulnpilot-mcp",
         "run", "vulnpilot-mcp"
@@ -85,7 +85,7 @@ Add to your `.cursor/mcp.json`:
 {
   "mcpServers": {
     "vulnpilot": {
-      "command": "uv",
+      "command": "/absolute/path/to/uv",
       "args": [
         "--directory", "/absolute/path/to/vulnpilot-mcp",
         "run", "vulnpilot-mcp"
@@ -106,7 +106,7 @@ Add to your `.vscode/mcp.json`:
 {
   "servers": {
     "vulnpilot": {
-      "command": "uv",
+      "command": "/absolute/path/to/uv",
       "args": [
         "--directory", "/absolute/path/to/vulnpilot-mcp",
         "run", "vulnpilot-mcp"
@@ -118,7 +118,7 @@ Add to your `.vscode/mcp.json`:
 
 </details>
 
-> **Note:** Replace `/absolute/path/to/vulnpilot-mcp` with the actual path where you cloned the repository.
+> **Note:** Replace `/absolute/path/to/uv` with the absolute path to your `uv` binary (find it with `which uv`) and `/absolute/path/to/vulnpilot-mcp` with the actual path where you cloned the repository.
 
 ---
 
@@ -180,6 +180,12 @@ Check django version 2.2.0 for vulnerabilities
   ]
 }
 ```
+
+#### Example in Action
+
+<p align="center">
+  <img src="assets/vulnpilot-example.png" alt="VulnPilot checking log4j-core 2.14.1 for vulnerabilities" width="800" />
+</p>
 
 ### Response Schema
 
