@@ -2,7 +2,12 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-Ecosystem = Literal["PyPI", "npm", "Maven"]
+Ecosystem = Literal[
+    "PyPI",
+    "npm",
+    "Maven",
+    "Gradle",
+]
 
 class Vulnerability(BaseModel):
     """A vulnerability reported by OSV."""

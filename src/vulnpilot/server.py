@@ -6,6 +6,14 @@ from vulnpilot.osv_client import normalize_vulnerability, query_osv
 
 mcp = FastMCP("VulnPilot")
 
+OSV_ECOSYSTEM_MAPPING = {
+    "PyPI": "PyPI",
+    "npm": "npm",
+    "Maven": "Maven",
+    "Gradle": "Maven",
+}
+
+
 @mcp.tool(
     annotations={
         "readOnlyHint": True,
@@ -24,12 +32,13 @@ async def check_package(
     Args:
         package_name: Name of the package, for example django.
         version: Exact package version, for example 2.2.0.
-        ecosystem: One of PyPI, npm, or Maven.
+        ecosystem: One of PyPI, npm, Maven or Gradle.
     """
     package_name = package_name.strip()
     version = version.strip()
+    osv_ecosystem = OSV_ECOSYSTEM_MAPPING[ecosystem]
 
-    if ecosystem == "Maven":
+    if ecosystem in {"Maven", "Gradle"}:
         coordinate_parts = package_name.split(":")
 
         if (
@@ -38,7 +47,7 @@ async def check_package(
             or not coordinate_parts[1]
         ):
             raise ValueError(
-                "Maven package_name must use "
+                f"{ecosystem} package_name must use "
                 "the format groupId:artifactId"
             )
 
@@ -51,7 +60,7 @@ async def check_package(
     payload = {
         "package": {
             "name": package_name,
-            "ecosystem": ecosystem,
+            "ecosystem": osv_ecosystem,
         },
         "version": version,
     }

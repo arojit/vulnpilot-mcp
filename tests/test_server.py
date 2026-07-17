@@ -173,3 +173,53 @@ async def test_rejects_invalid_maven_coordinate():
             version="2.14.1",
             ecosystem="Maven",
         )
+
+
+@pytest.mark.asyncio
+async def test_gradle_uses_maven_osv_ecosystem(
+    monkeypatch,
+):
+    captured_payload = {}
+
+    async def fake_query_osv(payload):
+        captured_payload.update(payload)
+        return {}
+
+    monkeypatch.setattr(
+        "vulnpilot.server.query_osv",
+        fake_query_osv,
+    )
+
+    result = await check_package(
+        package_name=(
+            "org.apache.logging.log4j:log4j-core"
+        ),
+        version="2.14.1",
+        ecosystem="Gradle",
+    )
+
+    assert captured_payload == {
+        "package": {
+            "name": (
+                "org.apache.logging.log4j:"
+                "log4j-core"
+            ),
+            "ecosystem": "Maven",
+        },
+        "version": "2.14.1",
+    }
+
+    assert result.ecosystem == "Gradle"
+
+
+@pytest.mark.asyncio
+async def test_rejects_invalid_gradle_coordinate():
+    with pytest.raises(
+        ValueError,
+        match="Gradle package_name",
+    ):
+        await check_package(
+            package_name="log4j-core",
+            version="2.14.1",
+            ecosystem="Gradle",
+        )
