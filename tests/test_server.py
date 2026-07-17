@@ -20,6 +20,26 @@ async def test_check_package_returns_vulnerabilities(monkeypatch):
                     "id": "GHSA-test-1234",
                     "summary": "Test Django vulnerability",
                     "aliases": ["CVE-2026-1234"],
+                    "database_specific": {
+                        "severity": "HIGH",
+                    },
+                    "affected": [
+                        {
+                            "ranges": [
+                                {
+                                    "events": [
+                                        {"introduced": "0"},
+                                        {"fixed": "2.2.10"},
+                                    ]
+                                }
+                            ]
+                        }
+                    ],
+                    "references": [
+                        {
+                            "url": "https://example.com/advisory"
+                        }
+                    ],
                 }
             ]
         }
@@ -45,6 +65,12 @@ async def test_check_package_returns_vulnerabilities(monkeypatch):
     assert vulnerability.id == "GHSA-test-1234"
     assert vulnerability.summary == "Test Django vulnerability"
     assert vulnerability.aliases == ["CVE-2026-1234"]
+
+    assert vulnerability.severity == "HIGH"
+    assert vulnerability.fixed_versions == ["2.2.10"]
+    assert vulnerability.references == [
+        "https://example.com/advisory"
+    ]
 
 
 @pytest.mark.asyncio

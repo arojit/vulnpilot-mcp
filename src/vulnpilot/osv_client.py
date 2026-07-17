@@ -1,10 +1,51 @@
-from typing import Any
-
 import httpx
+from typing import Any
+from vulnpilot.models import Vulnerability
 
 
 OSV_QUERY_URL = "https://api.osv.dev/v1/query"
 
+
+def normalize_vulnerability(
+    vulnerability: dict[str, Any],
+) -> Vulnerability:
+    """Convert an OSV vulnerability into our response model."""
+
+    database_specific = (
+        vulnerability.get("database_specific") or {}
+    )
+
+    severity = database_specific.get("severity")
+
+    fixed_versions = set()
+
+    for affected_package in vulnerability.get("affected", []):
+        for version_range in affected_package.get("ranges", []):
+            for event in version_range.get("events", []):
+                fixed_version = event.get("fixed")
+
+                if fixed_version:
+                    fixed_versions.add(fixed_version)
+
+    references = set()
+
+    for reference in vulnerability.get("references", []):
+        url = reference.get("url")
+
+        if url:
+            references.add(url)
+
+    return Vulnerability(
+        id=vulnerability.get("id", "UNKNOWN"),
+        summary=vulnerability.get(
+            "summary",
+            "No summary available",
+        ),
+        aliases=sorted(set(vulnerability.get("aliases", []))),
+        severity=severity,
+        fixed_versions=sorted(fixed_versions),
+        references=sorted(references),
+    )
 
 async def query_osv(
     payload: dict[str, Any],

@@ -6,6 +6,9 @@ class Vulnerability(BaseModel):
     id: str
     summary: str
     aliases: list[str] = Field(default_factory=list)
+    severity: str | None = None
+    fixed_versions: list[str] = Field(default_factory=list)
+    references: list[str] = Field(default_factory=list)
 
 class PackageCheckResult(BaseModel):
     """Structured result returned by check_package."""

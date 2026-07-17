@@ -2,7 +2,7 @@ from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
 from vulnpilot.models import PackageCheckResult, Vulnerability
-from vulnpilot.osv_client import query_osv
+from vulnpilot.osv_client import normalize_vulnerability, query_osv
 
 mcp = FastMCP("VulnPilot")
 
@@ -46,17 +46,11 @@ async def check_package(
     data = await query_osv(payload)
 
     vulnerabilities = data.get("vulns", [])
-    
-    simplified_vulnerabilities = []
 
-    for vulnerability in vulnerabilities:
-        simplified_vulnerabilities.append(
-            Vulnerability(
-                id = vulnerability.get("id", "UNKNOWN"),
-                summary = vulnerability.get("summary", "No summery available"),
-                aliases = vulnerability.get("aliases", [])
-            )
-        )
+    simplified_vulnerabilities = [
+        normalize_vulnerability(vulnerability)
+        for vulnerability in vulnerabilities
+    ]
 
     return PackageCheckResult(
         package_name=package_name,
