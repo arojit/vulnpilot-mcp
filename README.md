@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">🛡️ VulnPilot</h1>
   <p align="center">
-    <strong>An MCP server that gives AI assistants the ability to check open-source packages for known vulnerabilities — powered by the <a href="https://osv.dev">OSV</a> database.</strong>
+    <strong>An MCP server that gives AI assistants the ability to check open-source packages for known vulnerabilities - powered by the <a href="https://osv.dev">OSV</a> database.</strong>
   </p>
   <p align="center">
     <a href="#quickstart">Quickstart</a> · <a href="#how-it-works">How It Works</a> · <a href="#tool-reference">Tool Reference</a> · <a href="#development">Development</a>
@@ -12,9 +12,9 @@
 
 ## Why VulnPilot?
 
-Modern AI coding assistants can write, refactor, and review code — but they're blind to the security posture of the dependencies they recommend. VulnPilot bridges that gap.
+Modern AI coding assistants can write, refactor, and review code - but they're blind to the security posture of the dependencies they recommend. VulnPilot bridges that gap.
 
-By exposing a single, focused [Model Context Protocol (MCP)](https://modelcontextprotocol.io) tool, VulnPilot lets any MCP-compatible client — Claude Desktop, Cursor, VS Code Copilot, and others — query the [OSV.dev](https://osv.dev) vulnerability database in real time before suggesting a dependency.
+By exposing a single, focused [Model Context Protocol (MCP)](https://modelcontextprotocol.io) tool, VulnPilot lets any MCP-compatible client - Claude Desktop, Cursor, VS Code Copilot, and others - query the [OSV.dev](https://osv.dev) vulnerability database in real time before suggesting a dependency.
 
 **No API keys. No configuration files. Just install and connect.**
 
