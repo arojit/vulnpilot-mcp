@@ -179,9 +179,14 @@ Check django version 2.2.0 for vulnerabilities
 
 #### Example in Action
 
-<p align="center">
-  <img src="assets/vulnpilot-example.png" alt="VulnPilot checking log4j-core 2.14.1 for vulnerabilities" width="800" />
-</p>
+- **Example 1**
+  <p align="center">
+    <img src="assets/vulnpilot-example.png" alt="VulnPilot checking log4j-core 2.14.1 for vulnerabilities" width="800" />
+  </p>
+- **Example 2**
+  <p align="center">
+    <img src="assets/vulnpilot-example-2.png" alt="VulnPilot example usage" width="800" />
+  </p>
 
 ### Response Schema
 
