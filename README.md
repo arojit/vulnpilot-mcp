@@ -16,7 +16,8 @@ Modern AI coding assistants can write, refactor, and review code - but they're b
 
 By exposing a single, focused [Model Context Protocol (MCP)](https://modelcontextprotocol.io) tool, VulnPilot lets any MCP-compatible client - Claude Desktop, Cursor, VS Code Copilot, and others - query the [OSV.dev](https://osv.dev) database in real time. 
 
-Beyond standard vulnerability scanning, VulnPilot enriches findings with actionable threat intelligence:
+Beyond standard vulnerability scanning, VulnPilot enriches findings with actionable threat intelligence and prioritization:
+- **Triage Priority Engine:** Automatically classifies findings as `IMMEDIATE`, `URGENT`, `HIGH`, or `NORMAL` based on code reachability, dependency scope, and exploit telemetry.
 - **FIRST EPSS Scores:** Real-time probability metrics detailing the likelihood of a vulnerability being exploited in the next 30 days.
 - **CISA KEV Catalog:** Direct indicators flagging if a vulnerability is actively exploited in active cyberattacks or ransomware campaigns.
 
@@ -129,7 +130,7 @@ Add to your `.vscode/mcp.json`:
 ## How It Works
 
 <p align="center">
-  <img src="assets/how-it-works.png" alt="How VulnPilot works — MCP Client communicates via STDIO with VulnPilot, which queries OSV.dev over HTTPS" width="800" />
+  <img src="assets/how-it-works.png" alt="How VulnPilot works — MCP Client communicates via STDIO with VulnPilot, which queries OSV.dev over HTTPS" width="400" />
 </p>
 
 1. Your AI assistant decides it needs to verify a dependency.
@@ -150,6 +151,8 @@ Check a specific package version for known vulnerabilities.
 | `package_name` | `string` | *required* | Package name (e.g. `django`, `lodash`, `org.apache.logging.log4j:log4j-core`) |
 | `version` | `string` | *required* | Exact version to check (e.g. `2.2.0`) |
 | `ecosystem` | `string` | `"PyPI"` | One of `PyPI`, `npm`, `Maven`, or `Gradle` |
+| `is_reachable` | `boolean` | `null` | Optional. Indicates if the vulnerability is reachable in your codebase |
+| `dependency_scope` | `string` | `"unknown"` | Optional. The usage scope of the dependency (`production`, `development`, `unknown`) |
 
 > **Maven & Gradle:** Use the `groupId:artifactId` format for package names (e.g. `org.apache.logging.log4j:log4j-core`). Gradle packages are queried against the Maven ecosystem in OSV.
 
@@ -186,7 +189,8 @@ Check django version 2.2.0 for vulnerabilities
         "cisa_due_date": "2024-03-07",
         "cisa_required_action": "Apply updates per vendor instructions.",
         "known_ransomware_campaign_use": "Known"
-      }
+      },
+      "priority": "IMMEDIATE"
     }
   ],
   "enrichment_warnings": []
@@ -227,6 +231,7 @@ Each **vulnerability** contains:
 | `fixed_versions` | `string[]` | Versions that resolve the issue |
 | `references` | `string[]` | Links to advisories and patches |
 | `exploit_intelligence` | `object` | Real-world exploitation intelligence (EPSS & CISA KEV data) |
+| `priority` | `string` | Calculated triage priority (`IMMEDIATE`, `URGENT`, `HIGH`, `NORMAL`) |
 
 The **exploit_intelligence** object contains:
 
@@ -241,6 +246,17 @@ The **exploit_intelligence** object contains:
 | `cisa_due_date` | `string \| null` | Date (YYYY-MM-DD) by which federal agencies must remediate it |
 | `cisa_required_action` | `string \| null` | The action required to address the vulnerability per CISA KEV |
 | `known_ransomware_campaign_use` | `string \| null` | Indicates whether it is known to be used in ransomware campaigns |
+
+### Triage Priority Rules
+
+VulnPilot automatically assigns a remediation priority (`IMMEDIATE`, `URGENT`, `HIGH`, or `NORMAL`) using deterministic rules based on code reachability, dependency scope, and exploit telemetry:
+
+| Priority | Condition | Reasoning |
+|---|---|---|
+| **IMMEDIATE** | Listed in the CISA KEV catalog (`known_exploited = true`) | Actively exploited in active cyberattacks or ransomware campaigns in the wild. |
+| **URGENT** | Reachable code (`is_reachable = true`) AND high EPSS probability (`>= 0.5`) | High probability of imminent exploit, and the code path is active. |
+| **HIGH** | Production dependency (`dependency_scope = "production"`) AND severity is `CRITICAL` | Severe vulnerability exposed in the production environment. |
+| **NORMAL** | Default fallback for all other vulnerabilities | Lower risk/exploit probability, or restricted to development/unreachable code. |
 
 ---
 
@@ -289,11 +305,13 @@ vulnpilot-mcp/
 │   ├── osv_client.py      # OSV API client & response normalizer
 │   ├── epss_client.py     # EPSS Score API client
 │   ├── cisa_kev_client.py # CISA Known Exploited Vulnerabilities client
+│   ├── triage.py          # Remediation priority engine
 │   └── cve_utils.py       # CVE extraction utilities
 ├── tests/
 │   ├── test_server.py          # Server test suite
 │   ├── test_epss_client.py     # EPSS client test suite
-│   └── test_cisa_kev_client.py # CISA KEV client test suite
+│   ├── test_cisa_kev_client.py # CISA KEV client test suite
+│   └── test_triage.py          # Triage test suite
 ├── pyproject.toml         # Project metadata & dependencies
 └── README.md
 ```
