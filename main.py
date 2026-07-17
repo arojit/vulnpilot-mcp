@@ -1,17 +1,32 @@
+from typing import Literal
+
 import httpx
 from mcp.server.fastmcp import FastMCP
-
+from pydantic import BaseModel, Field
 
 mcp = FastMCP("VulnPilot")
 
 OSV_QUERY_URL = "https://api.osv.dev/v1/query"
 
+class Vulnerability(BaseModel):
+    id: str
+    summary: str
+    aliases: list[str] = Field(default_factory=list)
+
+class PackageCheckResult(BaseModel):
+    package_name: str
+    version: str
+    ecosystem: str
+    vulnerable: bool
+    vulnerability_count: int
+    vulnerabilities: list[Vulnerability] = Field(default_factory=list)
+
 @mcp.tool()
 async def check_package(
     package_name: str,
     version: str,
-    ecosystem: str = "PyPI",
-) -> dict:
+    ecosystem: Literal["PyPI"] = "PyPI",
+) -> PackageCheckResult:
     """Check a package version for known vulnerabilities using OSV
 
     Args:
@@ -42,23 +57,21 @@ async def check_package(
 
     for vulnerability in vulnerabilities:
         simplified_vulnerabilities.append(
-            {
-                "id": vulnerability.get("id"),
-                "summery": vulnerability.get("summery", "No summery available"),
-                "aliases": vulnerability.get("aliases", [])
-            }
+            Vulnerability(
+                id = vulnerability.get("id", "UNKNOWN"),
+                summary = vulnerability.get("summary", "No summery available"),
+                aliases = vulnerability.get("aliases", [])
+            )
         )
 
-
-
-    return {
-        "package_name": package_name,
-        "version": version,
-        "ecosystem": ecosystem,
-        "vulnerable": len(simplified_vulnerabilities) > 0,
-        "vulnerability_count": len(simplified_vulnerabilities),
-        "vulnerabilities": simplified_vulnerabilities
-    }
+    return PackageCheckResult(
+        package_name=package_name,
+        version=version,
+        ecosystem=ecosystem,
+        vulnerable=len(simplified_vulnerabilities) > 0,
+        vulnerability_count=len(simplified_vulnerabilities),
+        vulnerabilities=simplified_vulnerabilities
+    )
 
 
 if __name__ == "__main__":
