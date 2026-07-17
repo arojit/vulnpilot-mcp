@@ -21,6 +21,41 @@ class PackageCheckResult(BaseModel):
     vulnerability_count: int
     vulnerabilities: list[Vulnerability] = Field(default_factory=list)
 
+
+async def query_osv(payload: dict) -> dict:
+    """Send a vulnerability query to OSV."""
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                OSV_QUERY_URL,
+                json=payload,
+            )
+            response.raise_for_status()
+
+    except httpx.TimeoutException as exc:
+        raise RuntimeError(
+            "The OSV request timed out. Please try again."
+        ) from exc
+
+    except httpx.HTTPStatusError as exc:
+        raise RuntimeError(
+            f"OSV returned HTTP status {exc.response.status_code}."
+        ) from exc
+
+    except httpx.RequestError as exc:
+        raise RuntimeError(
+            "Could not connect to the OSV service."
+        ) from exc
+
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise RuntimeError(
+            "OSV returned an invalid JSON response."
+        ) from exc
+
+
 @mcp.tool(
     annotations={
         "readOnlyHint": True,
@@ -58,39 +93,7 @@ async def check_package(
         "version": version,
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                OSV_QUERY_URL,
-                json=payload
-            )
-
-            response.raise_for_status()
-    
-    except httpx.TimeoutException as exc:
-        raise RuntimeError(
-            "The OSV request timed out. Please try again."
-        ) from exc
-    
-    except httpx.HTTPStatusError as exc:
-        status_code = exc.response.status_code
-
-        raise RuntimeError(
-            f"OSV returned HTTP status {status_code}."
-        ) from exc
-
-    except httpx.RequestError as exc:
-        raise RuntimeError(
-            "Could not connect to the OSV service."
-        ) from exc
-    
-    
-    try:
-        data = response.json()
-    except ValueError as ex:
-        raise RuntimeError(
-            "OSV returned an invalid JSON response."
-        ) from exc
+    data = await query_osv(payload)
 
     vulnerabilities = data.get("vulns", [])
     
