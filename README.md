@@ -171,9 +171,16 @@ Check django version 2.2.0 for vulnerabilities
       "aliases": ["CVE-2024-XXXXX"],
       "severity": "HIGH",
       "fixed_versions": ["2.2.10"],
-      "references": ["https://github.com/advisories/..."]
+      "references": ["https://github.com/advisories/..."],
+      "exploit_intelligence": {
+        "matched_cve": "CVE-2024-XXXXX",
+        "epss_probability": 0.354,
+        "epss_percentile": 0.921,
+        "known_exploited": false
+      }
     }
-  ]
+  ],
+  "warnings": []
 }
 ```
 
@@ -198,6 +205,7 @@ Check django version 2.2.0 for vulnerabilities
 | `vulnerable` | `boolean` | `true` if any vulnerabilities were found |
 | `vulnerability_count` | `integer` | Number of known vulnerabilities |
 | `vulnerabilities` | `array` | List of vulnerability objects |
+| `warnings` | `string[]` | List of warning messages (e.g. EPSS lookup failures) |
 
 Each **vulnerability** contains:
 
@@ -209,6 +217,16 @@ Each **vulnerability** contains:
 | `severity` | `string \| null` | Severity level when available |
 | `fixed_versions` | `string[]` | Versions that resolve the issue |
 | `references` | `string[]` | Links to advisories and patches |
+| `exploit_intelligence` | `object` | Real-world exploitation intelligence (EPSS) |
+
+Each **exploit_intelligence** contains:
+
+| Field | Type | Description |
+|---|---|---|
+| `matched_cve` | `string \| null` | The CVE identifier used for the EPSS lookup |
+| `epss_probability` | `number \| null` | Exploit Prediction Scoring System probability score |
+| `epss_percentile` | `number \| null` | EPSS score percentile compared to other CVEs |
+| `known_exploited` | `boolean` | `true` if the CVE is on CISA's Known Exploited Vulnerabilities catalog |
 
 ---
 
@@ -254,7 +272,8 @@ vulnpilot-mcp/
 │   ├── __init__.py        # Package marker
 │   ├── server.py          # MCP server & tool definitions
 │   ├── models.py          # Pydantic response models
-│   └── osv_client.py      # OSV API client & response normalizer
+│   ├── osv_client.py      # OSV API client & response normalizer
+│   └── exploit_intel_client.py # EPSS API client for exploitation intelligence
 ├── tests/
 │   └── test_server.py     # Test suite
 ├── pyproject.toml         # Project metadata & dependencies
@@ -271,6 +290,7 @@ vulnpilot-mcp/
 | Data Validation | [Pydantic v2](https://docs.pydantic.dev) |
 | HTTP Client | [httpx](https://www.python-httpx.org) |
 | Vulnerability Data | [OSV.dev API](https://osv.dev) |
+| Exploit Intel | [FIRST.org EPSS API](https://api.first.org/data/v1/epss) |
 | Build System | [Hatchling](https://hatch.pypa.io) |
 | Package Manager | [uv](https://docs.astral.sh/uv/) |
 | Testing | [pytest](https://docs.pytest.org) + [pytest-asyncio](https://pytest-asyncio.readthedocs.io) |
