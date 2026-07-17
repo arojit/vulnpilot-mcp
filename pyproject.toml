@@ -15,7 +15,17 @@ dev = [
     "pytest-asyncio>=1.4.0",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+vulnpilot-mcp = "vulnpilot.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vulnpilot"]
+
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"

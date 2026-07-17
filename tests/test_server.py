@@ -1,6 +1,6 @@
 import pytest
 
-from main import check_package
+from vulnpilot.server import check_package
 
 
 @pytest.mark.asyncio
@@ -25,7 +25,7 @@ async def test_check_package_returns_vulnerabilities(monkeypatch):
         }
 
     monkeypatch.setattr(
-        "main.query_osv",
+        "vulnpilot.server.query_osv",
         fake_query_osv,
     )
 
@@ -53,7 +53,7 @@ async def test_check_package_returns_clean_result(monkeypatch):
         return {}
 
     monkeypatch.setattr(
-        "main.query_osv",
+        "vulnpilot.server.query_osv",
         fake_query_osv,
     )
 

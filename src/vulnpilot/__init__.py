@@ -1,0 +1,1 @@
+"""VulnPilot MCP package."""
