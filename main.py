@@ -21,7 +21,14 @@ class PackageCheckResult(BaseModel):
     vulnerability_count: int
     vulnerabilities: list[Vulnerability] = Field(default_factory=list)
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 async def check_package(
     package_name: str,
     version: str,
@@ -34,6 +41,15 @@ async def check_package(
         version: Exact package version, for example 2.2.0.
         ecosystem: Package ecosystem, currently PyPI.
     """
+    package_name = package_name.strip()
+    version = version.strip()
+
+    if not package_name:
+        raise ValueError("Package name is required")
+
+    if not version:
+        raise ValueError("Version is required")
+    
     payload = {
         "package": {
             "name": package_name,
@@ -42,15 +58,40 @@ async def check_package(
         "version": version,
     }
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            OSV_QUERY_URL,
-            json=payload
-        )
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                OSV_QUERY_URL,
+                json=payload
+            )
 
-        response.raise_for_status()
+            response.raise_for_status()
     
-    data = response.json()
+    except httpx.TimeoutException as exc:
+        raise RuntimeError(
+            "The OSV request timed out. Please try again."
+        ) from exc
+    
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+
+        raise RuntimeError(
+            f"OSV returned HTTP status {status_code}."
+        ) from exc
+
+    except httpx.RequestError as exc:
+        raise RuntimeError(
+            "Could not connect to the OSV service."
+        ) from exc
+    
+    
+    try:
+        data = response.json()
+    except ValueError as ex:
+        raise RuntimeError(
+            "OSV returned an invalid JSON response."
+        ) from exc
+
     vulnerabilities = data.get("vulns", [])
     
     simplified_vulnerabilities = []
