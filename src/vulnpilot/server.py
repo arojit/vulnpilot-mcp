@@ -1,7 +1,7 @@
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
-from vulnpilot.models import PackageCheckResult, Vulnerability
+from vulnpilot.models import PackageCheckResult, Ecosystem
 from vulnpilot.osv_client import normalize_vulnerability, query_osv
 
 mcp = FastMCP("VulnPilot")
@@ -17,17 +17,30 @@ mcp = FastMCP("VulnPilot")
 async def check_package(
     package_name: str,
     version: str,
-    ecosystem: Literal["PyPI"] = "PyPI",
+    ecosystem: Ecosystem = "PyPI",
 ) -> PackageCheckResult:
     """Check a package version for known vulnerabilities using OSV
 
     Args:
         package_name: Name of the package, for example django.
         version: Exact package version, for example 2.2.0.
-        ecosystem: Package ecosystem, currently PyPI.
+        ecosystem: One of PyPI, npm, or Maven.
     """
     package_name = package_name.strip()
     version = version.strip()
+
+    if ecosystem == "Maven":
+        coordinate_parts = package_name.split(":")
+
+        if (
+            len(coordinate_parts) != 2
+            or not coordinate_parts[0]
+            or not coordinate_parts[1]
+        ):
+            raise ValueError(
+                "Maven package_name must use "
+                "the format groupId:artifactId"
+            )
 
     if not package_name:
         raise ValueError("Package name is required")

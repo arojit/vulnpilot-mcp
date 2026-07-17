@@ -1,4 +1,8 @@
+from typing import Literal
 from pydantic import BaseModel, Field
+
+
+Ecosystem = Literal["PyPI", "npm", "Maven"]
 
 class Vulnerability(BaseModel):
     """A vulnerability reported by OSV."""
@@ -15,7 +19,7 @@ class PackageCheckResult(BaseModel):
     
     package_name: str
     version: str
-    ecosystem: str
+    ecosystem: Ecosystem
     vulnerable: bool
     vulnerability_count: int
     vulnerabilities: list[Vulnerability] = Field(default_factory=list)
