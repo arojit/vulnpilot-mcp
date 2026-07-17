@@ -3,6 +3,8 @@ from typing import Literal
 from mcp.server.fastmcp import FastMCP
 from vulnpilot.models import PackageCheckResult, Ecosystem
 from vulnpilot.osv_client import normalize_vulnerability, query_osv
+from vulnpilot.models import DependencyScope
+from vulnpilot.triage import assign_priorities
 
 from vulnpilot.cisa_kev_client import (
     CISAKEVClientError,
@@ -42,6 +44,8 @@ async def check_package(
     package_name: str,
     version: str,
     ecosystem: Ecosystem = "PyPI",
+    is_reachable: bool | None = None,
+    dependency_scope: DependencyScope = "unknown",
 ) -> PackageCheckResult:
     """Check an exact dependency version for known vulnerabilities.
 
@@ -110,6 +114,12 @@ async def check_package(
         )
     except CISAKEVClientError as exc:
         enrichment_warnings.append(str(exc))
+    
+    simplified_vulnerabilities = assign_priorities(
+        simplified_vulnerabilities,
+        is_reachable=is_reachable,
+        dependency_scope=dependency_scope,
+    )
 
     return PackageCheckResult(
         package_name=package_name,

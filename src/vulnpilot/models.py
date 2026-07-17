@@ -10,6 +10,19 @@ Ecosystem = Literal[
     "Gradle",
 ]
 
+TriagePriority = Literal[
+    "IMMEDIATE",
+    "URGENT",
+    "HIGH",
+    "NORMAL",
+]
+
+DependencyScope = Literal[
+    "production",
+    "development",
+    "unknown",
+]
+
 class ExploitIntelligence(BaseModel):
     """Real-world exploitation intelligence for a vulnerability."""
 
@@ -46,6 +59,7 @@ class Vulnerability(BaseModel):
     exploit_intelligence: ExploitIntelligence = Field(
         default_factory=ExploitIntelligence
     )
+    priority: TriagePriority = "NORMAL"
 
 class PackageCheckResult(BaseModel):
     """Structured result returned by check_package."""
