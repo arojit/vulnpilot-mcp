@@ -124,13 +124,9 @@ Add to your `.vscode/mcp.json`:
 
 ## How It Works
 
-```
-┌──────────────┐       STDIO        ┌──────────────┐      HTTPS       ┌───────────┐
-│  MCP Client  │ ◄──────────────► │  VulnPilot   │ ──────────────► │  OSV.dev  │
-│  (Claude,    │   MCP Protocol     │  MCP Server  │   REST API       │  Database │
-│   Cursor…)   │                    └──────────────┘                  └───────────┘
-└──────────────┘
-```
+<p align="center">
+  <img src="assets/how-it-works.png" alt="How VulnPilot works — MCP Client communicates via STDIO with VulnPilot, which queries OSV.dev over HTTPS" width="800" />
+</p>
 
 1. Your AI assistant decides it needs to verify a dependency.
 2. It calls the `check_package` tool via the MCP protocol.
