@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">🛡️ VulnPilot</h1>
   <p align="center">
-    <strong>An MCP server that gives AI assistants the ability to check open-source packages for known vulnerabilities - powered by the <a href="https://osv.dev">OSV</a> database.</strong>
+    <strong>An MCP server that gives AI assistants the ability to check open-source packages for vulnerabilities and real-world exploit intelligence — powered by <a href="https://osv.dev">OSV.dev</a>, <a href="https://www.first.org/epss/">EPSS</a>, and <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog">CISA KEV</a>.</strong>
   </p>
   <p align="center">
     <a href="#quickstart">Quickstart</a> · <a href="#how-it-works">How It Works</a> · <a href="#tool-reference">Tool Reference</a> · <a href="#development">Development</a>
@@ -12,11 +12,15 @@
 
 ## Why VulnPilot?
 
-Modern AI coding assistants can write, refactor, and review code - but they're blind to the security posture of the dependencies they recommend. VulnPilot bridges that gap.
+Modern AI coding assistants can write, refactor, and review code - but they're blind to the security posture and real-world exploitability of the dependencies they recommend. VulnPilot bridges that gap.
 
-By exposing a single, focused [Model Context Protocol (MCP)](https://modelcontextprotocol.io) tool, VulnPilot lets any MCP-compatible client - Claude Desktop, Cursor, VS Code Copilot, and others - query the [OSV.dev](https://osv.dev) vulnerability database in real time before suggesting a dependency.
+By exposing a single, focused [Model Context Protocol (MCP)](https://modelcontextprotocol.io) tool, VulnPilot lets any MCP-compatible client - Claude Desktop, Cursor, VS Code Copilot, and others - query the [OSV.dev](https://osv.dev) database in real time. 
 
-**No API keys. No configuration files. Just install and connect.**
+Beyond standard vulnerability scanning, VulnPilot enriches findings with actionable threat intelligence:
+- **FIRST EPSS Scores:** Real-time probability metrics detailing the likelihood of a vulnerability being exploited in the next 30 days.
+- **CISA KEV Catalog:** Direct indicators flagging if a vulnerability is actively exploited in active cyberattacks or ransomware campaigns.
+
+**No API keys. No complex configuration. Just install, connect, and let your AI agent code securely.**
 
 ---
 
@@ -173,14 +177,19 @@ Check django version 2.2.0 for vulnerabilities
       "fixed_versions": ["2.2.10"],
       "references": ["https://github.com/advisories/..."],
       "exploit_intelligence": {
-        "matched_cve": "CVE-2024-XXXXX",
-        "epss_probability": 0.354,
-        "epss_percentile": 0.921,
-        "known_exploited": false
+        "epss_cve": "CVE-2024-XXXXX",
+        "epss_probability": 0.0892,
+        "epss_percentile": 0.4215,
+        "known_exploited": true,
+        "cisa_kev_cve": "CVE-2024-XXXXX",
+        "cisa_date_added": "2024-02-15",
+        "cisa_due_date": "2024-03-07",
+        "cisa_required_action": "Apply updates per vendor instructions.",
+        "known_ransomware_campaign_use": "Known"
       }
     }
   ],
-  "warnings": []
+  "enrichment_warnings": []
 }
 ```
 
@@ -205,7 +214,7 @@ Check django version 2.2.0 for vulnerabilities
 | `vulnerable` | `boolean` | `true` if any vulnerabilities were found |
 | `vulnerability_count` | `integer` | Number of known vulnerabilities |
 | `vulnerabilities` | `array` | List of vulnerability objects |
-| `warnings` | `string[]` | List of warning messages (e.g. EPSS lookup failures) |
+| `enrichment_warnings` | `string[]` | Warnings/errors encountered during EPSS or CISA KEV enrichment |
 
 Each **vulnerability** contains:
 
@@ -217,16 +226,21 @@ Each **vulnerability** contains:
 | `severity` | `string \| null` | Severity level when available |
 | `fixed_versions` | `string[]` | Versions that resolve the issue |
 | `references` | `string[]` | Links to advisories and patches |
-| `exploit_intelligence` | `object` | Real-world exploitation intelligence (EPSS) |
+| `exploit_intelligence` | `object` | Real-world exploitation intelligence (EPSS & CISA KEV data) |
 
-Each **exploit_intelligence** contains:
+The **exploit_intelligence** object contains:
 
 | Field | Type | Description |
 |---|---|---|
-| `matched_cve` | `string \| null` | The CVE identifier used for the EPSS lookup |
-| `epss_probability` | `number \| null` | Exploit Prediction Scoring System probability score |
-| `epss_percentile` | `number \| null` | EPSS score percentile compared to other CVEs |
-| `known_exploited` | `boolean` | `true` if the CVE is on CISA's Known Exploited Vulnerabilities catalog |
+| `epss_cve` | `string \| null` | The CVE identifier matched for EPSS scoring |
+| `epss_probability` | `float \| null` | Probability of exploitation in the next 30 days (0.0 to 1.0) |
+| `epss_percentile` | `float \| null` | Percentile of the score relative to all other CVEs (0.0 to 1.0) |
+| `known_exploited` | `boolean` | `true` if the vulnerability is listed in the CISA KEV catalog |
+| `cisa_kev_cve` | `string \| null` | The CVE identifier matched in the CISA KEV catalog |
+| `cisa_date_added` | `string \| null` | Date (YYYY-MM-DD) when it was added to the CISA KEV catalog |
+| `cisa_due_date` | `string \| null` | Date (YYYY-MM-DD) by which federal agencies must remediate it |
+| `cisa_required_action` | `string \| null` | The action required to address the vulnerability per CISA KEV |
+| `known_ransomware_campaign_use` | `string \| null` | Indicates whether it is known to be used in ransomware campaigns |
 
 ---
 
@@ -273,9 +287,13 @@ vulnpilot-mcp/
 │   ├── server.py          # MCP server & tool definitions
 │   ├── models.py          # Pydantic response models
 │   ├── osv_client.py      # OSV API client & response normalizer
-│   └── exploit_intel_client.py # EPSS API client for exploitation intelligence
+│   ├── epss_client.py     # EPSS Score API client
+│   ├── cisa_kev_client.py # CISA Known Exploited Vulnerabilities client
+│   └── cve_utils.py       # CVE extraction utilities
 ├── tests/
-│   └── test_server.py     # Test suite
+│   ├── test_server.py          # Server test suite
+│   ├── test_epss_client.py     # EPSS client test suite
+│   └── test_cisa_kev_client.py # CISA KEV client test suite
 ├── pyproject.toml         # Project metadata & dependencies
 └── README.md
 ```
@@ -290,7 +308,7 @@ vulnpilot-mcp/
 | Data Validation | [Pydantic v2](https://docs.pydantic.dev) |
 | HTTP Client | [httpx](https://www.python-httpx.org) |
 | Vulnerability Data | [OSV.dev API](https://osv.dev) |
-| Exploit Intel | [FIRST.org EPSS API](https://api.first.org/data/v1/epss) |
+| Exploit Intel | [FIRST EPSS](https://www.first.org/epss/) & [CISA KEV Catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) |
 | Build System | [Hatchling](https://hatch.pypa.io) |
 | Package Manager | [uv](https://docs.astral.sh/uv/) |
 | Testing | [pytest](https://docs.pytest.org) + [pytest-asyncio](https://pytest-asyncio.readthedocs.io) |

@@ -1,15 +1,14 @@
 from dataclasses import dataclass
-
-import httpx
-
 from vulnpilot.models import Vulnerability
+from vulnpilot.cve_utils import extract_cve_ids
+import httpx
 
 
 EPSS_API_URL = "https://api.first.org/data/v1/epss"
 
 
-class ExploitIntelligenceError(RuntimeError):
-    """Raised when exploit intelligence cannot be retrieved."""
+class EPSSClientError(RuntimeError):
+    """Raised when EPSS information cannot be retrieved."""
 
 
 @dataclass(frozen=True)
@@ -59,25 +58,25 @@ async def fetch_epss_scores(
             response.raise_for_status()
 
     except httpx.TimeoutException as exc:
-        raise ExploitIntelligenceError(
+        raise EPSSClientError(
             "The EPSS request timed out."
         ) from exc
 
     except httpx.HTTPStatusError as exc:
-        raise ExploitIntelligenceError(
+        raise EPSSClientError(
             f"EPSS returned HTTP status "
             f"{exc.response.status_code}."
         ) from exc
 
     except httpx.RequestError as exc:
-        raise ExploitIntelligenceError(
+        raise EPSSClientError(
             "Could not connect to the EPSS service."
         ) from exc
 
     try:
         data = response.json()
     except ValueError as exc:
-        raise ExploitIntelligenceError(
+        raise EPSSClientError(
             "EPSS returned invalid JSON."
         ) from exc
 
@@ -127,7 +126,7 @@ async def enrich_with_epss(
         )
 
         intelligence = vulnerability.exploit_intelligence
-        intelligence.matched_cve = highest_score.cve
+        intelligence.epss_cve = highest_score.cve
         intelligence.epss_probability = highest_score.probability
         intelligence.epss_percentile = highest_score.percentile
 

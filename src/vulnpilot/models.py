@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Literal
 from pydantic import BaseModel, Field
 
@@ -12,7 +13,7 @@ Ecosystem = Literal[
 class ExploitIntelligence(BaseModel):
     """Real-world exploitation intelligence for a vulnerability."""
 
-    matched_cve: str | None = None
+    epss_cve: str | None = None
 
     epss_probability: float | None = Field(
         default=None,
@@ -27,6 +28,11 @@ class ExploitIntelligence(BaseModel):
     )
 
     known_exploited: bool = False
+    cisa_kev_cve: str | None = None
+    cisa_date_added: date | None = None
+    cisa_due_date: date | None = None
+    cisa_required_action: str | None = None
+    known_ransomware_campaign_use: str | None = None
 
 class Vulnerability(BaseModel):
     """A vulnerability reported by OSV."""
@@ -50,4 +56,6 @@ class PackageCheckResult(BaseModel):
     vulnerable: bool
     vulnerability_count: int
     vulnerabilities: list[Vulnerability] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
+    enrichment_warnings: list[str] = Field(
+        default_factory=list
+    )

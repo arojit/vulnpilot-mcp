@@ -1,6 +1,26 @@
 import pytest
 
 from vulnpilot.server import check_package
+from vulnpilot.epss_client import EPSSClientError
+from vulnpilot.cisa_kev_client import CISAKEVClientError
+
+
+@pytest.fixture(autouse=True)
+def mock_exploit_enrichment(monkeypatch):
+    """Prevent live EPSS and CISA calls in server tests."""
+
+    async def passthrough(vulnerabilities):
+        return vulnerabilities
+
+    monkeypatch.setattr(
+        "vulnpilot.server.enrich_with_epss",
+        passthrough,
+    )
+
+    monkeypatch.setattr(
+        "vulnpilot.server.enrich_with_cisa_kev",
+        passthrough,
+    )
 
 
 @pytest.mark.asyncio
@@ -223,3 +243,99 @@ async def test_rejects_invalid_gradle_coordinate():
             version="2.14.1",
             ecosystem="Gradle",
         )
+
+
+@pytest.mark.asyncio
+async def test_returns_warning_when_epss_fails(
+    monkeypatch,
+):
+    async def fake_query_osv(payload):
+        return {
+            "vulns": [
+                {
+                    "id": "GHSA-test",
+                    "summary": "Test vulnerability",
+                    "aliases": ["CVE-2021-44228"],
+                }
+            ]
+        }
+
+    async def failing_epss(vulnerabilities):
+        raise EPSSClientError(
+            "Could not connect to EPSS."
+        )
+
+    async def successful_cisa(vulnerabilities):
+        return vulnerabilities
+
+    monkeypatch.setattr(
+        "vulnpilot.server.query_osv",
+        fake_query_osv,
+    )
+    monkeypatch.setattr(
+        "vulnpilot.server.enrich_with_epss",
+        failing_epss,
+    )
+    monkeypatch.setattr(
+        "vulnpilot.server.enrich_with_cisa_kev",
+        successful_cisa,
+    )
+
+    result = await check_package(
+        package_name="django",
+        version="2.2.0",
+        ecosystem="PyPI",
+    )
+
+    assert result.vulnerable is True
+    assert result.enrichment_warnings == [
+        "Could not connect to EPSS."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_returns_warning_when_cisa_fails(
+    monkeypatch,
+):
+    async def fake_query_osv(payload):
+        return {
+            "vulns": [
+                {
+                    "id": "GHSA-test",
+                    "summary": "Test vulnerability",
+                    "aliases": ["CVE-2021-44228"],
+                }
+            ]
+        }
+
+    async def successful_epss(vulnerabilities):
+        return vulnerabilities
+
+    async def failing_cisa(vulnerabilities):
+        raise CISAKEVClientError(
+            "Could not connect to CISA KEV."
+        )
+
+    monkeypatch.setattr(
+        "vulnpilot.server.query_osv",
+        fake_query_osv,
+    )
+    monkeypatch.setattr(
+        "vulnpilot.server.enrich_with_epss",
+        successful_epss,
+    )
+    monkeypatch.setattr(
+        "vulnpilot.server.enrich_with_cisa_kev",
+        failing_cisa,
+    )
+
+    result = await check_package(
+        package_name="django",
+        version="2.2.0",
+        ecosystem="PyPI",
+    )
+
+    assert result.vulnerable is True
+    assert result.enrichment_warnings == [
+        "Could not connect to CISA KEV."
+    ]

@@ -3,8 +3,13 @@ from typing import Literal
 from mcp.server.fastmcp import FastMCP
 from vulnpilot.models import PackageCheckResult, Ecosystem
 from vulnpilot.osv_client import normalize_vulnerability, query_osv
-from vulnpilot.exploit_intel_client import (
-    ExploitIntelligenceError,
+
+from vulnpilot.cisa_kev_client import (
+    CISAKEVClientError,
+    enrich_with_cisa_kev,
+)
+from vulnpilot.epss_client import (
+    EPSSClientError,
     enrich_with_epss,
 )
 
@@ -91,13 +96,20 @@ async def check_package(
         for vulnerability in vulnerabilities
     ]
 
-    warnings = []
+    enrichment_warnings = []
     try:
         simplified_vulnerabilities = await enrich_with_epss(
             simplified_vulnerabilities
         )
-    except ExploitIntelligenceError as exc:
-        warnings.append(str(exc))
+    except EPSSClientError as exc:
+        enrichment_warnings.append(str(exc))
+
+    try:
+        simplified_vulnerabilities = await enrich_with_cisa_kev(
+            simplified_vulnerabilities
+        )
+    except CISAKEVClientError as exc:
+        enrichment_warnings.append(str(exc))
 
     return PackageCheckResult(
         package_name=package_name,
@@ -106,7 +118,7 @@ async def check_package(
         vulnerable=len(simplified_vulnerabilities) > 0,
         vulnerability_count=len(simplified_vulnerabilities),
         vulnerabilities=simplified_vulnerabilities,
-        warnings=warnings,
+        enrichment_warnings=enrichment_warnings,
     )
 
 
