@@ -1,10 +1,10 @@
 <p align="center">
   <h1 align="center">🛡️ VulnPilot</h1>
   <p align="center">
-    <strong>An MCP server that gives AI assistants the ability to check open-source packages for vulnerabilities and real-world exploit intelligence — powered by <a href="https://osv.dev">OSV.dev</a>, <a href="https://www.first.org/epss/">EPSS</a>, and <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog">CISA KEV</a>.</strong>
+    <strong>An MCP server that gives AI assistants the ability to check open-source packages for vulnerabilities, enrich findings with real-world exploit intelligence, and statically analyse whether vulnerable code is actually reachable in your project — powered by <a href="https://osv.dev">OSV.dev</a>, <a href="https://www.first.org/epss/">EPSS</a>, and <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog">CISA KEV</a>.</strong>
   </p>
   <p align="center">
-    <a href="#quickstart">Quickstart</a> · <a href="#how-it-works">How It Works</a> · <a href="#tool-reference">Tool Reference</a> · <a href="#development">Development</a>
+    <a href="#quickstart">Quickstart</a> · <a href="#how-it-works">How It Works</a> · <a href="#tool-reference">Tool Reference</a> · <a href="#reachability-analysis">Reachability Analysis</a> · <a href="#development">Development</a>
   </p>
 </p>
 
@@ -12,14 +12,17 @@
 
 ## Why VulnPilot?
 
-Modern AI coding assistants can write, refactor, and review code - but they're blind to the security posture and real-world exploitability of the dependencies they recommend. VulnPilot bridges that gap.
+Modern AI coding assistants can write, refactor, and review code — but they're blind to the security posture and real-world exploitability of the dependencies they recommend. VulnPilot bridges that gap.
 
-By exposing a single, focused [Model Context Protocol (MCP)](https://modelcontextprotocol.io) tool, VulnPilot lets any MCP-compatible client - Claude Desktop, Cursor, VS Code Copilot, and others - query the [OSV.dev](https://osv.dev) database in real time. 
+By exposing focused [Model Context Protocol (MCP)](https://modelcontextprotocol.io) tools, VulnPilot lets any MCP-compatible client — Claude Desktop, Cursor, VS Code Copilot, and others — query the [OSV.dev](https://osv.dev) database in real time and reason about your actual source code.
 
-Beyond standard vulnerability scanning, VulnPilot enriches findings with actionable threat intelligence and prioritization:
+Knowing a package is vulnerable is only half the story. The question that actually determines your risk is: **does your project even call into that vulnerable code?** VulnPilot answers that too — by statically scanning your project's imports across Python, JavaScript/TypeScript, and Java, and telling your AI assistant whether a vulnerability is reachable in production code, test-only, or not used at all.
+
+Beyond vulnerability detection, VulnPilot enriches findings with actionable threat intelligence:
+- **Reachability Analysis:** Statically scans your source code to determine whether a vulnerable package is actually imported — and whether that import is in production code or only in tests. Supports Python, JavaScript/TypeScript, and Java (Maven & Gradle).
 - **Triage Priority Engine:** Automatically classifies findings as `IMMEDIATE`, `URGENT`, `HIGH`, or `NORMAL` based on code reachability, dependency scope, and exploit telemetry.
 - **FIRST EPSS Scores:** Real-time probability metrics detailing the likelihood of a vulnerability being exploited in the next 30 days.
-- **CISA KEV Catalog:** Direct indicators flagging if a vulnerability is actively exploited in active cyberattacks or ransomware campaigns.
+- **CISA KEV Catalog:** Direct indicators flagging if a vulnerability is actively exploited in cyberattacks or ransomware campaigns.
 
 **No API keys. No complex configuration. Just install, connect, and let your AI agent code securely.**
 
@@ -133,18 +136,29 @@ Add to your `.vscode/mcp.json`:
   <img src="assets/how-it-works.png" alt="How VulnPilot works — MCP Client communicates via STDIO with VulnPilot, which queries OSV.dev over HTTPS" width="400" />
 </p>
 
+**Checking for vulnerabilities:**
 1. Your AI assistant decides it needs to verify a dependency.
 2. It calls the `check_package` tool via the MCP protocol.
-3. VulnPilot queries the [OSV API](https://osv.dev/docs/) and returns a structured result.
-4. The assistant uses the response to inform its recommendation.
+3. VulnPilot queries the [OSV API](https://osv.dev/docs/), enriches the result with EPSS and CISA KEV data, and assigns a triage priority.
+4. The assistant uses the structured response to inform its recommendation.
+
+**Checking reachability:**
+1. Your AI assistant wants to know if a vulnerable package is actually used in the project.
+2. It calls `analyze_python_reachability` (or the JavaScript/Java equivalent) with the project path.
+3. VulnPilot scans the source files, finds every import of that package, and classifies each usage as production or test-only.
+4. The assistant can then tell you: "This vulnerability is reachable in production code" or "It's only used in tests — lower priority."
 
 ---
 
 ## Tool Reference
 
+VulnPilot exposes two categories of MCP tools: **vulnerability lookup** and **reachability analysis**.
+
+---
+
 ### `check_package`
 
-Check a specific package version for known vulnerabilities.
+Check a specific package version for known vulnerabilities, enriched with EPSS scores, CISA KEV status, and a triage priority.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
@@ -253,21 +267,93 @@ VulnPilot automatically assigns a remediation priority (`IMMEDIATE`, `URGENT`, `
 
 | Priority | Condition | Reasoning |
 |---|---|---|
-| **IMMEDIATE** | Listed in the CISA KEV catalog (`known_exploited = true`) | Actively exploited in active cyberattacks or ransomware campaigns in the wild. |
+| **IMMEDIATE** | Listed in the CISA KEV catalog (`known_exploited = true`) | Actively exploited in cyberattacks or ransomware campaigns in the wild. |
 | **URGENT** | Reachable code (`is_reachable = true`) AND high EPSS probability (`>= 0.5`) | High probability of imminent exploit, and the code path is active. |
 | **HIGH** | Production dependency (`dependency_scope = "production"`) AND severity is `CRITICAL` | Severe vulnerability exposed in the production environment. |
 | **NORMAL** | Default fallback for all other vulnerabilities | Lower risk/exploit probability, or restricted to development/unreachable code. |
 
 ---
 
+## Reachability Analysis
+
+Knowing a package has a CVE doesn't tell you whether *your* code is actually at risk. VulnPilot's reachability tools scan your project's source files to find every place a package is imported, distinguish production imports from test-only ones, and surface that context to your AI assistant — so it can give you a genuinely accurate risk assessment instead of a blanket "upgrade everything".
+
+All reachability tools perform **static import detection**. They do not execute code and cannot trace dynamic call paths or runtime plugin loading — see the `limitations` field in each response for details.
+
+### `analyze_python_reachability`
+
+Scans a Python project for imports of a given PyPI package. Uses Python's `ast` module for accurate parse-tree analysis rather than simple text search.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `project_path` | `string` | *required* | Absolute path to the project root directory |
+| `package_name` | `string` | *required* | PyPI package name (e.g. `requests`) |
+| `import_names` | `string[]` | *auto-derived* | Override the Python import name when it differs from the package name (e.g. `["bs4"]` for `beautifulsoup4`) |
+
+Detects both `import requests` and `from requests.sessions import Session` style imports.
+
+### `analyze_javascript_reachability`
+
+Scans a JavaScript or TypeScript project for imports of a given npm package. Covers ES module `import`, CommonJS `require()`, and dynamic `import()` calls.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `project_path` | `string` | *required* | Absolute path to the project root directory |
+| `package_name` | `string` | *required* | npm package name, including scoped packages (e.g. `lodash`, `@example/api-client`) |
+| `import_names` | `string[]` | *auto-derived* | Override the import name if needed |
+
+Supports `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, and `.cjs` files. Correctly handles subpath imports (`lodash/get`) and ignores commented-out imports.
+
+### `analyze_java_reachability`
+
+Scans a Java project for imports of a given Maven package and checks whether it is a **direct dependency** in the project's build file.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `project_path` | `string` | *required* | Absolute path to the project root directory |
+| `package_name` | `string` | *required* | Maven coordinate in `groupId:artifactId` format (e.g. `org.apache.logging.log4j:log4j-core`) |
+| `import_names` | `string[]` | *auto-derived* | Override the Java package prefix when it differs from the group ID |
+
+Auto-detects the build system (Maven `pom.xml` or Gradle `build.gradle` / `build.gradle.kts`) and reports whether the dependency is declared directly or only transitively.
+
+### Reachability Response Schema
+
+All three tools return the same `ReachabilityResult` shape:
+
+| Field | Type | Description |
+|---|---|---|
+| `package_name` | `string` | The queried package |
+| `ecosystem` | `string` | `PyPI`, `npm`, or `Maven` |
+| `import_names` | `string[]` | The import name(s) scanned for |
+| `build_system` | `string \| null` | Detected build system (`maven`, `gradle`, `unknown`) — Java only |
+| `dependency_type` | `string` | `direct` if declared in the build file, otherwise `unknown` |
+| `usage_found` | `boolean` | `true` if any import was found anywhere in the project |
+| `production_usage_found` | `boolean` | `true` if at least one non-test file imports the package |
+| `test_only` | `boolean` | `true` if the package is imported only in test files |
+| `used_in` | `UsageLocation[]` | List of every file and line where an import was found |
+| `reachability` | `string` | `"likely"` (production usage found) or `"unlikely"` |
+| `limitations` | `string[]` | Caveats about the static analysis approach |
+
+Each **UsageLocation** contains:
+
+| Field | Type | Description |
+|---|---|---|
+| `file` | `string` | Relative path to the file |
+| `line` | `integer` | Line number of the import |
+| `imported_name` | `string` | The exact module/package name as written in the source |
+| `kind` | `string` | Import style: `import`, `from_import`, `require`, or `dynamic_import` |
+| `is_test_file` | `boolean` | `true` if the file was identified as a test file |
+
+---
+
 ## Supported Ecosystems
 
-| Ecosystem | Package Name Format | Example |
-|---|---|---|
-| **PyPI** | `package-name` | `django` |
-| **npm** | `package-name` | `lodash` |
-| **Maven** | `groupId:artifactId` | `org.apache.logging.log4j:log4j-core` |
-| **Gradle** | `groupId:artifactId` | `com.google.guava:guava` |
+| Ecosystem | `check_package` | Reachability Analysis | Package Name Format | Example |
+|---|---|---|---|---|
+| **PyPI** | ✅ | ✅ `analyze_python_reachability` | `package-name` | `django` |
+| **npm** | ✅ | ✅ `analyze_javascript_reachability` | `package-name` | `lodash` |
+| **Maven** | ✅ | ✅ `analyze_java_reachability` | `groupId:artifactId` | `org.apache.logging.log4j:log4j-core` |
+| **Gradle** | ✅ | ✅ `analyze_java_reachability` | `groupId:artifactId` | `com.google.guava:guava` |
 
 ---
 
@@ -306,12 +392,21 @@ vulnpilot-mcp/
 │   ├── epss_client.py     # EPSS Score API client
 │   ├── cisa_kev_client.py # CISA Known Exploited Vulnerabilities client
 │   ├── triage.py          # Remediation priority engine
-│   └── cve_utils.py       # CVE extraction utilities
+│   ├── cve_utils.py       # CVE extraction utilities
+│   └── reachability/      # Reachability analysis (language-specific modules)
+│       ├── __init__.py               # Re-exports all public symbols
+│       ├── _common.py                # Shared helpers (path filtering, test detection)
+│       ├── python_reachability.py    # Python / PyPI import scanner
+│       ├── javascript_reachability.py # JavaScript & TypeScript import scanner
+│       └── java_reachability.py      # Java import scanner + Maven/Gradle build detection
 ├── tests/
-│   ├── test_server.py          # Server test suite
-│   ├── test_epss_client.py     # EPSS client test suite
-│   ├── test_cisa_kev_client.py # CISA KEV client test suite
-│   └── test_triage.py          # Triage test suite
+│   ├── test_server.py                  # Server tool test suite
+│   ├── test_reachability.py            # Python reachability test suite
+│   ├── test_javascript_reachability.py # JavaScript reachability test suite
+│   ├── test_java_reachability.py       # Java reachability test suite
+│   ├── test_epss_client.py             # EPSS client test suite
+│   ├── test_cisa_kev_client.py         # CISA KEV client test suite
+│   └── test_triage.py                  # Triage test suite
 ├── pyproject.toml         # Project metadata & dependencies
 └── README.md
 ```
