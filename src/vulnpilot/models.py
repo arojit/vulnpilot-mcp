@@ -42,6 +42,12 @@ ReachabilityLevel = Literal[
     "unknown",
 ]
 
+BuildSystem = Literal[
+    "maven",
+    "gradle",
+    "unknown",
+]
+
 
 class ExploitIntelligence(BaseModel):
     """Real-world exploitation intelligence for a vulnerability."""
@@ -110,6 +116,7 @@ class ReachabilityResult(BaseModel):
     ecosystem: Ecosystem
     import_names: list[str]
 
+    build_system: BuildSystem = "unknown"
     dependency_type: DependencyType = "unknown"
 
     usage_found: bool
