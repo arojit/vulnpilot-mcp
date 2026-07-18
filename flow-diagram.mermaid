@@ -1,0 +1,34 @@
+flowchart TD
+    A["Cursor, Claude, VS Code or MCP Inspector"]
+    B["VulnPilot MCP Server"]
+
+    subgraph vcheck["check_package flow"]
+        C["OSV API"]
+        D["Normalized vulnerabilities"]
+        E["EPSS API"]
+        F["CISA KEV Catalog"]
+        G["Priority engine"]
+        H["Enriched PackageCheckResult"]
+
+        C --> D
+        D -->|"CVE batch query"| E
+        D -->|"CVE catalog lookup"| F
+        E --> G
+        F --> G
+        G -->|"KEV, EPSS, reachability and scope"| H
+    end
+
+    subgraph reach["analyze_*_reachability flow"]
+        I["Project source files"]
+        J["Import scanner\nPython · JavaScript · Java"]
+        K["ReachabilityResult\nproduction / test-only / not found"]
+
+        I --> J
+        J --> K
+    end
+
+    A <-->|"MCP over STDIO"| B
+    B -->|"Package + version"| C
+    H --> B
+    B -->|"project_path + package_name"| I
+    K --> B

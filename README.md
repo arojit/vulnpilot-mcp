@@ -221,6 +221,10 @@ Check django version 2.2.0 for vulnerabilities
   <p align="center">
     <img src="assets/vulnpilot-example-2.png" alt="VulnPilot example usage" width="800" />
   </p>
+- **Example 3**
+  <p align="center">
+    <img src="assets/vulnpilot-example-3.png" alt="VulnPilot example usage" width="800" />
+  </p>
 
 ### Response Schema
 
