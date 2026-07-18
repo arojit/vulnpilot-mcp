@@ -3,8 +3,12 @@ from typing import Literal
 from mcp.server.fastmcp import FastMCP
 from vulnpilot.models import PackageCheckResult, Ecosystem
 from vulnpilot.osv_client import normalize_vulnerability, query_osv
-from vulnpilot.models import DependencyScope
+from vulnpilot.models import DependencyScope, ReachabilityResult
 from vulnpilot.triage import assign_priorities
+
+from vulnpilot.reachability import (
+    analyze_python_reachability as run_python_reachability,
+)
 
 from vulnpilot.cisa_kev_client import (
     CISAKEVClientError,
@@ -129,6 +133,26 @@ async def check_package(
         vulnerability_count=len(simplified_vulnerabilities),
         vulnerabilities=simplified_vulnerabilities,
         enrichment_warnings=enrichment_warnings,
+    )
+
+
+@mcp.tool()
+def analyze_python_reachability(
+    project_path: str,
+    package_name: str,
+    import_names: list[str] | None = None,
+) -> ReachabilityResult:
+    """
+    Analyze a Python project to determine whether a package is imported.
+
+    project_path must be a directory accessible to the MCP server.
+    import_names can be provided when the package name differs from
+    its Python import name, such as beautifulsoup4 -> bs4.
+    """
+    return run_python_reachability(
+        project_path=project_path,
+        package_name=package_name,
+        import_names=import_names,
     )
 
 

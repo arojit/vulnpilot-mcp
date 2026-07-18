@@ -23,6 +23,26 @@ DependencyScope = Literal[
     "unknown",
 ]
 
+UsageKind = Literal[
+    "import",
+    "from_import",
+    "require",
+    "dynamic_import",
+]
+
+DependencyType = Literal[
+    "direct",
+    "transitive",
+    "unknown",
+]
+
+ReachabilityLevel = Literal[
+    "likely",
+    "unlikely",
+    "unknown",
+]
+
+
 class ExploitIntelligence(BaseModel):
     """Real-world exploitation intelligence for a vulnerability."""
 
@@ -71,5 +91,40 @@ class PackageCheckResult(BaseModel):
     vulnerability_count: int
     vulnerabilities: list[Vulnerability] = Field(default_factory=list)
     enrichment_warnings: list[str] = Field(
+        default_factory=list
+    )
+
+class UsageLocation(BaseModel):
+    """A source location where a dependency is used."""
+
+    file: str
+    line: int = Field(ge=1)
+    imported_name: str
+    kind: UsageKind
+    is_test_file: bool = False
+
+class ReachabilityResult(BaseModel):
+    """Static dependency reachability analysis."""
+
+    package_name: str
+    ecosystem: Ecosystem
+    import_names: list[str]
+
+    dependency_type: DependencyType = "unknown"
+
+    usage_found: bool
+    production_usage_found: bool
+    test_only: bool
+
+    used_in: list[UsageLocation] = Field(
+        default_factory=list
+    )
+
+    vulnerable_api_used: bool | None = None
+    internet_facing: bool | None = None
+
+    reachability: ReachabilityLevel
+
+    limitations: list[str] = Field(
         default_factory=list
     )
