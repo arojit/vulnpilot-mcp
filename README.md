@@ -136,17 +136,17 @@ Add to your `.vscode/mcp.json`:
   <img src="assets/how-it-works.png" alt="How VulnPilot works — MCP Client communicates via STDIO with VulnPilot, which queries OSV.dev over HTTPS" width="400" />
 </p>
 
-**Checking for vulnerabilities:**
-1. Your AI assistant decides it needs to verify a dependency.
-2. It calls the `check_package` tool via the MCP protocol.
-3. VulnPilot queries the [OSV API](https://osv.dev/docs/), enriches the result with EPSS and CISA KEV data, and assigns a triage priority.
-4. The assistant uses the structured response to inform its recommendation.
+**Checking for vulnerabilities (`check_package`):**
+1. Your AI assistant calls `check_package` with a package name and version.
+2. VulnPilot queries the [OSV API](https://osv.dev/docs/) and normalizes the raw advisories.
+3. CVE identifiers are batch-queried against [FIRST EPSS](https://www.first.org/epss/) and the [CISA KEV Catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog).
+4. The priority engine combines exploit telemetry, reachability, and dependency scope into a single triage signal (`IMMEDIATE` → `NORMAL`).
+5. The enriched `PackageCheckResult` is returned to the assistant.
 
-**Checking reachability:**
-1. Your AI assistant wants to know if a vulnerable package is actually used in the project.
-2. It calls `analyze_python_reachability` (or the JavaScript/Java equivalent) with the project path.
-3. VulnPilot scans the source files, finds every import of that package, and classifies each usage as production or test-only.
-4. The assistant can then tell you: "This vulnerability is reachable in production code" or "It's only used in tests — lower priority."
+**Checking reachability (`analyze_*_reachability`):**
+1. Your AI assistant calls the appropriate reachability tool with a project path and package name.
+2. VulnPilot scans the source files, finds every import of that package, and classifies each usage as production or test-only.
+3. The assistant can then tell you: "This vulnerability is reachable in production code" or "It's only used in tests — lower priority."
 
 ---
 
