@@ -8,6 +8,8 @@ from vulnpilot.triage import assign_priorities
 
 from vulnpilot.reachability import (
     analyze_python_reachability as run_python_reachability,
+    analyze_javascript_reachability as run_javascript_reachability,
+    analyze_java_reachability as run_java_reachability,
 )
 
 from vulnpilot.cisa_kev_client import (
@@ -24,7 +26,9 @@ mcp = FastMCP(
     instructions=(
         "Use check_package whenever the user asks about "
         "known vulnerabilities in a specific dependency version. "
-        "Supported ecosystems are PyPI, npm, and Maven."
+        "Use analyze_reachability to determine whether a package "
+        "is actually imported in a project's source code. "
+        "Supported ecosystems are PyPI, npm, Maven, and Gradle."
     ),
 )
 
@@ -136,20 +140,44 @@ async def check_package(
     )
 
 
+REACHABILITY_ANALYZERS = {
+    "PyPI": run_python_reachability,
+    "npm": run_javascript_reachability,
+    "Maven": run_java_reachability,
+    "Gradle": run_java_reachability,
+}
+
+
 @mcp.tool()
-def analyze_python_reachability(
+def analyze_reachability(
     project_path: str,
     package_name: str,
+    ecosystem: Ecosystem = "PyPI",
     import_names: list[str] | None = None,
 ) -> ReachabilityResult:
     """
-    Analyze a Python project to determine whether a package is imported.
+    Analyze a project to determine whether a package is actually imported.
 
-    project_path must be a directory accessible to the MCP server.
-    import_names can be provided when the package name differs from
-    its Python import name, such as beautifulsoup4 -> bs4.
+    Statically scans source files for imports of the given package and
+    classifies each usage as production or test-only. Supports Python
+    (PyPI), JavaScript/TypeScript (npm), and Java (Maven/Gradle).
+
+    Args:
+        project_path: Absolute path to the project root directory.
+        package_name: Package name to look for. Use groupId:artifactId for Maven/Gradle.
+        ecosystem: One of PyPI, npm, Maven, or Gradle. Determines which scanner to use.
+        import_names: Override the import name when it differs from the package name
+                      (e.g. ["bs4"] for beautifulsoup4, or a Java package prefix).
     """
-    return run_python_reachability(
+    analyzer = REACHABILITY_ANALYZERS.get(ecosystem)
+
+    if analyzer is None:
+        raise ValueError(
+            f"Unsupported ecosystem for reachability analysis: {ecosystem}. "
+            f"Supported: {', '.join(REACHABILITY_ANALYZERS)}"
+        )
+
+    return analyzer(
         project_path=project_path,
         package_name=package_name,
         import_names=import_names,
