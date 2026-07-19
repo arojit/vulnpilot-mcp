@@ -153,7 +153,11 @@ Add to your `.vscode/mcp.json`:
 
 ## Tool Reference
 
-VulnPilot exposes two categories of MCP tools: **vulnerability lookup** and **reachability analysis**.
+VulnPilot exposes MCP **tools**, **prompts**, and **resources**.
+
+- **Tools** — callable functions for vulnerability lookup and reachability analysis.
+- **Prompts** — parameterized instruction templates that guide the AI through multi-step workflows.
+- **Resources** — read-only reference data the AI can pull for context (e.g. triage rules, supported ecosystems).
 
 ---
 
@@ -356,6 +360,53 @@ Each **UsageLocation** contains:
 
 ---
 
+### Prompts
+
+Prompts are reusable, parameterized templates that guide the AI assistant through multi-step security workflows. MCP clients that support prompts can present them as selectable actions.
+
+#### `security_audit`
+
+Run a full security audit across a list of project dependencies. The prompt instructs the AI to check each dependency for vulnerabilities, run reachability analysis on any that are vulnerable, and produce a prioritized summary report.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `project_path` | `string` | Absolute path to the project root directory |
+| `ecosystem` | `string` | One of `PyPI`, `npm`, `Maven`, or `Gradle` |
+| `dependencies` | `string` | Comma-separated `name:version` pairs (e.g. `"django:4.2.0, requests:2.31.0"`) |
+
+#### `triage_vulnerability`
+
+Deep-dive triage of a single dependency. Walks the AI through vulnerability lookup, reachability analysis, and a prioritized remediation recommendation — including CISA KEV urgency and direct vs transitive classification.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `package_name` | `string` | Package name (e.g. `django`, `lodash`, `org.apache.logging.log4j:log4j-core`) |
+| `version` | `string` | Exact version to check |
+| `ecosystem` | `string` | One of `PyPI`, `npm`, `Maven`, or `Gradle` |
+| `project_path` | `string` | Absolute path to the project root directory |
+
+#### `generate_dependency_evidence`
+
+Returns the shell commands the user needs to run so that VulnPilot can classify dependencies as direct or transitive for a given ecosystem.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `ecosystem` | `string` | One of `PyPI`, `npm`, `Maven`, or `Gradle` |
+
+---
+
+### Resources
+
+Resources expose read-only reference data that the AI assistant can request for additional context.
+
+| URI | Name | MIME Type | Description |
+|---|---|---|---|
+| `vulnpilot://supported-ecosystems` | Supported Ecosystems | `application/json` | JSON listing of every ecosystem VulnPilot supports, including package name format, available tools, and example coordinates. |
+| `vulnpilot://triage-rules` | Triage Priority Rules | `text/markdown` | Explains the deterministic rules VulnPilot uses to assign `IMMEDIATE`, `URGENT`, `HIGH`, or `NORMAL` priority. |
+| `vulnpilot://dependency-evidence-guide` | Dependency Evidence Guide | `text/markdown` | Step-by-step commands to generate lock files and dependency tree reports for each ecosystem. |
+
+---
+
 ## Generating Dependency Evidence
 
 VulnPilot automatically reads **lock files** and **manifest files** that already exist in your project. For ecosystems that don't produce a lock file by default, you can generate a dependency report so VulnPilot can classify dependencies as direct or transitive.
@@ -488,7 +539,7 @@ uv run mcp dev src/vulnpilot/server.py
 vulnpilot-mcp/
 ├── src/vulnpilot/
 │   ├── __init__.py        # Package marker
-│   ├── server.py          # MCP server & tool definitions
+│   ├── server.py          # MCP server: tools, prompts & resources
 │   ├── models.py          # Pydantic response models
 │   ├── osv_client.py      # OSV API client & response normalizer
 │   ├── epss_client.py     # EPSS Score API client
@@ -514,7 +565,8 @@ vulnpilot-mcp/
 │   ├── test_java_dependencies.py       # Java dependency classifier test suite
 │   ├── test_epss_client.py             # EPSS client test suite
 │   ├── test_cisa_kev_client.py         # CISA KEV client test suite
-│   └── test_triage.py                  # Triage test suite
+│   ├── test_triage.py                  # Triage test suite
+│   └── test_prompts_and_resources.py   # Prompts & resources test suite
 ├── pyproject.toml         # Project metadata & dependencies
 └── README.md
 ```
