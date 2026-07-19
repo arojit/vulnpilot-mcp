@@ -237,3 +237,52 @@ def test_dependency_management_is_not_direct(
 
     assert result.build_system == "maven"
     assert result.dependency_type == "unknown"
+
+def test_java_reachability_includes_dependency_type(
+    tmp_path,
+):
+    (tmp_path / "pom.xml").write_text(
+        """
+<project>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.14.1</version>
+        </dependency>
+    </dependencies>
+</project>
+""".strip(),
+        encoding="utf-8",
+    )
+
+    source_directory = (
+        tmp_path / "src" / "main" / "java"
+    )
+    source_directory.mkdir(parents=True)
+
+    (
+        source_directory / "Application.java"
+    ).write_text(
+        """
+import org.apache.logging.log4j.LogManager;
+
+public class Application {
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = analyze_java_reachability(
+        project_path=str(tmp_path),
+        package_name=(
+            "org.apache.logging.log4j:log4j-core"
+        ),
+    )
+
+    assert result.dependency_type == "direct"
+    assert "pom.xml" in (
+        result.dependency_evidence[0]
+    )
+    assert result.usage_found is True
+    assert result.reachability == "likely"
