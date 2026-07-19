@@ -16,10 +16,11 @@ Modern AI coding assistants can write, refactor, and review code — but they're
 
 By exposing focused [Model Context Protocol (MCP)](https://modelcontextprotocol.io) tools, VulnPilot lets any MCP-compatible client — Claude Desktop, Cursor, VS Code Copilot, and others — query the [OSV.dev](https://osv.dev) database in real time and reason about your actual source code.
 
-Knowing a package is vulnerable is only half the story. The question that actually determines your risk is: **does your project even call into that vulnerable code?** VulnPilot answers that too — by statically scanning your project's imports across Python, JavaScript/TypeScript, and Java, and telling your AI assistant whether a vulnerability is reachable in production code, test-only, or not used at all.
+Knowing a package is vulnerable is only half the story. The questions that actually determine your risk are: **does your project even call into that vulnerable code?** and **is it a direct dependency or just pulled in transitively?** VulnPilot answers both — by statically scanning your project's imports across Python, JavaScript/TypeScript, and Java, classifying each dependency as direct or transitive by inspecting manifest and lock files, and telling your AI assistant whether a vulnerability is reachable in production code, test-only, or not used at all.
 
 Beyond vulnerability detection, VulnPilot enriches findings with actionable threat intelligence:
 - **Reachability Analysis:** Statically scans your source code to determine whether a vulnerable package is actually imported — and whether that import is in production code or only in tests. Supports Python, JavaScript/TypeScript, and Java (Maven & Gradle).
+- **Direct vs Transitive Detection:** Inspects project manifests (`pyproject.toml`, `requirements.txt`, `package.json`, `pom.xml`, `build.gradle`) and lock files (`uv.lock`, `poetry.lock`, `package-lock.json`, `yarn.lock`, and more) to classify each dependency as `direct` or `transitive`, with evidence of where it was found.
 - **Triage Priority Engine:** Automatically classifies findings as `IMMEDIATE`, `URGENT`, `HIGH`, or `NORMAL` based on code reachability, dependency scope, and exploit telemetry.
 - **FIRST EPSS Scores:** Real-time probability metrics detailing the likelihood of a vulnerability being exploited in the next 30 days.
 - **CISA KEV Catalog:** Direct indicators flagging if a vulnerability is actively exploited in cyberattacks or ransomware campaigns.
@@ -296,6 +297,8 @@ Scans a Python project for imports of a given PyPI package. Uses Python's `ast` 
 
 Detects both `import requests` and `from requests.sessions import Session` style imports.
 
+**Dependency classification:** Inspects `pyproject.toml` (PEP 621 & Poetry), `setup.cfg`, `requirements.txt`, `requirements.in`, and lock files (`uv.lock`, `poetry.lock`, `pdm.lock`, `pylock.toml`) to determine whether the package is a direct or transitive dependency.
+
 ### `analyze_javascript_reachability`
 
 Scans a JavaScript or TypeScript project for imports of a given npm package. Covers ES module `import`, CommonJS `require()`, and dynamic `import()` calls.
@@ -308,9 +311,11 @@ Scans a JavaScript or TypeScript project for imports of a given npm package. Cov
 
 Supports `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, and `.cjs` files. Correctly handles subpath imports (`lodash/get`) and ignores commented-out imports.
 
+**Dependency classification:** Inspects `package.json` (all dependency fields including `devDependencies`, `peerDependencies`, `optionalDependencies`) and lock files (`package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml`) to determine whether the package is a direct or transitive dependency.
+
 ### `analyze_java_reachability`
 
-Scans a Java project for imports of a given Maven package and checks whether it is a **direct dependency** in the project's build file.
+Scans a Java project for imports of a given Maven package and classifies it as a **direct** or **transitive** dependency.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
@@ -318,7 +323,7 @@ Scans a Java project for imports of a given Maven package and checks whether it 
 | `package_name` | `string` | *required* | Maven coordinate in `groupId:artifactId` format (e.g. `org.apache.logging.log4j:log4j-core`) |
 | `import_names` | `string[]` | *auto-derived* | Override the Java package prefix when it differs from the group ID |
 
-Auto-detects the build system (Maven `pom.xml` or Gradle `build.gradle` / `build.gradle.kts`) and reports whether the dependency is declared directly or only transitively.
+Auto-detects the build system (Maven `pom.xml` or Gradle `build.gradle` / `build.gradle.kts`). Inspects build files for direct declarations and dependency tree reports (`maven-dependency-tree.txt`, `gradle-dependencies.txt`) to classify the dependency as direct or transitive.
 
 ### Reachability Response Schema
 
@@ -330,7 +335,8 @@ All three tools return the same `ReachabilityResult` shape:
 | `ecosystem` | `string` | `PyPI`, `npm`, or `Maven` |
 | `import_names` | `string[]` | The import name(s) scanned for |
 | `build_system` | `string \| null` | Detected build system (`maven`, `gradle`, `unknown`) — Java only |
-| `dependency_type` | `string` | `direct` if declared in the build file, otherwise `unknown` |
+| `dependency_type` | `string` | `direct` if declared in a manifest/build file, `transitive` if only found in a lock file or dependency tree, otherwise `unknown` |
+| `dependency_evidence` | `string[]` | Human-readable evidence explaining how the dependency type was determined (e.g. `"Found in pyproject.toml [project.dependencies]"`) |
 | `usage_found` | `boolean` | `true` if any import was found anywhere in the project |
 | `production_usage_found` | `boolean` | `true` if at least one non-test file imports the package |
 | `test_only` | `boolean` | `true` if the package is imported only in test files |
@@ -399,15 +405,21 @@ vulnpilot-mcp/
 │   ├── cve_utils.py       # CVE extraction utilities
 │   └── reachability/      # Reachability analysis (language-specific modules)
 │       ├── __init__.py               # Re-exports all public symbols
-│       ├── _common.py                # Shared helpers (path filtering, test detection)
+│       ├── _common.py                # Shared helpers (path filtering, test detection, DependencyClassification)
 │       ├── python_reachability.py    # Python / PyPI import scanner
+│       ├── python_dependencies.py    # Python direct vs transitive dependency classifier
 │       ├── javascript_reachability.py # JavaScript & TypeScript import scanner
-│       └── java_reachability.py      # Java import scanner + Maven/Gradle build detection
+│       ├── javascript_dependencies.py # JavaScript direct vs transitive dependency classifier
+│       ├── java_reachability.py      # Java import scanner + Maven/Gradle build detection
+│       └── java_dependencies.py      # Java direct vs transitive dependency classifier
 ├── tests/
 │   ├── test_server.py                  # Server tool test suite
 │   ├── test_reachability.py            # Python reachability test suite
+│   ├── test_python_dependencies.py     # Python dependency classifier test suite
 │   ├── test_javascript_reachability.py # JavaScript reachability test suite
+│   ├── test_javascript_dependencies.py # JavaScript dependency classifier test suite
 │   ├── test_java_reachability.py       # Java reachability test suite
+│   ├── test_java_dependencies.py       # Java dependency classifier test suite
 │   ├── test_epss_client.py             # EPSS client test suite
 │   ├── test_cisa_kev_client.py         # CISA KEV client test suite
 │   └── test_triage.py                  # Triage test suite
