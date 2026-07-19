@@ -12,6 +12,9 @@ from vulnpilot.reachability._common import (
     is_test_file,
     line_number,
 )
+from vulnpilot.reachability.javascript_dependencies import (
+    classify_javascript_dependency,
+)
 
 
 JAVASCRIPT_EXTENSIONS = {
@@ -217,12 +220,24 @@ def analyze_javascript_reachability(
         reachability = "unlikely"
     else:
         reachability = "unlikely"
+    
+    dependency_classification = (
+        classify_javascript_dependency(
+            project_path=root,
+            package_name=package_name,
+        )
+    )
 
     return ReachabilityResult(
         package_name=package_name,
         ecosystem="npm",
         import_names=resolved_import_names,
-        dependency_type="unknown",
+        dependency_type=(
+            dependency_classification.dependency_type
+        ),
+        dependency_evidence=(
+            dependency_classification.evidence
+        ),
         usage_found=bool(usages),
         production_usage_found=production_usage_found,
         test_only=test_only,
@@ -232,16 +247,17 @@ def analyze_javascript_reachability(
         reachability=reachability,
         limitations=[
             (
-                "Static import detection does not prove that the "
-                "imported code executes at runtime."
+                "Static import detection does not prove that "
+                "the imported code executes at runtime."
             ),
             (
-                "Computed module names, bundler aliases, and custom "
-                "module resolvers may not be detected."
+                "Computed module names, bundler aliases, and "
+                "custom module resolvers may not be detected."
             ),
             (
-                "Basic regular-expression scanning may produce false "
-                "positives in unusual JavaScript syntax."
+                "Yarn and pnpm lockfiles are detected using "
+                "package selector patterns rather than a full "
+                "package-manager-specific parser."
             ),
         ],
     )

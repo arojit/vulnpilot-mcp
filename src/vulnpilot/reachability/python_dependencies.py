@@ -12,7 +12,7 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
-from vulnpilot.models import DependencyType
+from vulnpilot.reachability._common import DependencyClassification
 
 
 PYTHON_LOCK_FILENAMES = (
@@ -26,12 +26,6 @@ PIP_INSPECT_PATHS = (
     "pip-inspect.json",
     ".vulnpilot/pip-inspect.json",
 )
-
-
-@dataclass(frozen=True)
-class DependencyClassification:
-    dependency_type: DependencyType
-    evidence: list[str]
 
 
 @dataclass

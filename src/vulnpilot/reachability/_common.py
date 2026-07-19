@@ -1,6 +1,9 @@
 """Shared helpers used across all reachability analysers."""
 
 from pathlib import Path
+from dataclasses import dataclass
+
+from vulnpilot.models import DependencyType
 
 
 IGNORED_DIRECTORIES = {
@@ -13,6 +16,11 @@ IGNORED_DIRECTORIES = {
     "build",
     "target",
 }
+
+@dataclass(frozen=True)
+class DependencyClassification:
+    dependency_type: DependencyType
+    evidence: list[str]
 
 
 def is_ignored_file(

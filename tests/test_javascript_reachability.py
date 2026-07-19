@@ -208,3 +208,43 @@ def test_returns_unlikely_when_package_is_unused(tmp_path):
     assert result.test_only is False
     assert result.used_in == []
     assert result.reachability == "unlikely"
+
+def test_javascript_reachability_includes_dependency_type(
+    tmp_path,
+):
+    (tmp_path / "package.json").write_text(
+        """
+{
+  "name": "example",
+  "version": "1.0.0",
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    source_directory = tmp_path / "src"
+    source_directory.mkdir()
+
+    (
+        source_directory / "query-builder.ts"
+    ).write_text(
+        """
+import lodash from "lodash";
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = analyze_javascript_reachability(
+        project_path=str(tmp_path),
+        package_name="lodash",
+    )
+
+    assert result.usage_found is True
+    assert result.reachability == "likely"
+    assert result.dependency_type == "direct"
+    assert "package.json" in (
+        result.dependency_evidence[0]
+    )
