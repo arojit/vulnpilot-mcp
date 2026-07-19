@@ -356,6 +356,98 @@ Each **UsageLocation** contains:
 
 ---
 
+## Generating Dependency Evidence
+
+VulnPilot automatically reads **lock files** and **manifest files** that already exist in your project. For ecosystems that don't produce a lock file by default, you can generate a dependency report so VulnPilot can classify dependencies as direct or transitive.
+
+> **Run these commands from the root of the project being analyzed — not from the VulnPilot directory.**
+
+<details>
+<summary><strong>Python — pip</strong></summary>
+
+If you use pip without a modern lock file, export the installed-package metadata:
+
+```bash
+mkdir -p .vulnpilot
+python -m pip inspect --local > .vulnpilot/pip-inspect.json
+```
+
+If the virtual environment is **not** activated:
+
+```bash
+mkdir -p .vulnpilot
+.venv/bin/python -m pip inspect --local > .vulnpilot/pip-inspect.json
+```
+
+</details>
+
+<details>
+<summary><strong>Python — uv, Poetry, or PDM</strong></summary>
+
+**No command is required** when the corresponding lock file exists:
+
+| Tool | Lock file |
+|---|---|
+| uv | `uv.lock` |
+| Poetry | `poetry.lock` |
+| PDM | `pdm.lock` |
+| PEP 751 | `pylock.toml` |
+
+</details>
+
+<details>
+<summary><strong>JavaScript / TypeScript — npm, Yarn, or pnpm</strong></summary>
+
+**No command is required** when the corresponding lock file exists:
+
+| Tool | Lock file |
+|---|---|
+| npm | `package-lock.json` |
+| Yarn | `yarn.lock` |
+| pnpm | `pnpm-lock.yaml` |
+
+</details>
+
+<details>
+<summary><strong>Java — Maven</strong></summary>
+
+Generate the dependency tree report:
+
+```bash
+mkdir -p .vulnpilot
+mvn dependency:tree \
+  -DoutputFile=.vulnpilot/maven-dependency-tree.txt
+```
+
+</details>
+
+<details>
+<summary><strong>Java — Gradle</strong></summary>
+
+Generate the runtime dependency tree:
+
+```bash
+mkdir -p .vulnpilot
+./gradlew dependencies \
+  --configuration runtimeClasspath \
+  > .vulnpilot/gradle-dependencies.txt
+```
+
+For test dependencies:
+
+```bash
+mkdir -p .vulnpilot
+./gradlew dependencies \
+  --configuration testRuntimeClasspath \
+  > .vulnpilot/gradle-test-dependencies.txt
+```
+
+</details>
+
+> **Tip:** The `.vulnpilot/` directory is a good candidate for `.gitignore` — the reports are generated per-environment and should not be committed.
+
+---
+
 ## Supported Ecosystems
 
 | Ecosystem | `check_package` | Reachability Analysis | Package Name Format | Example |
