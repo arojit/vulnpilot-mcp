@@ -12,6 +12,9 @@ from vulnpilot.reachability._common import (
     is_test_file,
     matches_import,
 )
+from vulnpilot.reachability.python_dependencies import (
+    classify_python_dependency,
+)
 
 
 def default_python_import_name(
@@ -150,12 +153,24 @@ def analyze_python_reachability(
         else "unlikely"
     )
 
+    dependency_classification = (
+        classify_python_dependency(
+            project_path=root,
+            package_name=package_name,
+        )
+    )
+
     return ReachabilityResult(
         package_name=package_name,
         ecosystem="PyPI",
         import_names=resolved_import_names,
-        dependency_type="unknown",
-        usage_found=usage_found,
+        dependency_type=(
+            dependency_classification.dependency_type
+        ),
+        dependency_evidence=(
+            dependency_classification.evidence
+        ),
+        usage_found=bool(usages),
         production_usage_found=production_usage_found,
         test_only=test_only,
         used_in=usages,
@@ -164,12 +179,17 @@ def analyze_python_reachability(
         reachability=reachability,
         limitations=[
             (
-                "This is static import detection and does not "
-                "prove that vulnerable code executes at runtime."
+                "Static import detection does not prove that "
+                "the imported code executes at runtime."
             ),
             (
-                "Dynamic imports, plugin loading and reflection "
+                "Dynamic imports, plugins, and reflection "
                 "may not be detected."
+            ),
+            (
+                "requirements.txt may be handwritten or "
+                "generated, so pip-inspect.json provides "
+                "stronger dependency relationship evidence."
             ),
         ],
     )

@@ -118,6 +118,9 @@ class ReachabilityResult(BaseModel):
 
     build_system: BuildSystem = "unknown"
     dependency_type: DependencyType = "unknown"
+    dependency_evidence: list[str] = Field(
+        default_factory=list
+    )
 
     usage_found: bool
     production_usage_found: bool

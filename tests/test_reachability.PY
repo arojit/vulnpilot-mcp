@@ -122,3 +122,38 @@ def test_ignores_virtual_environment(
     )
 
     assert result.usage_found is False
+
+def test_python_reachability_includes_dependency_type(
+    tmp_path,
+):
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "example"
+version = "0.1.0"
+dependencies = ["requests>=2"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    source_directory = tmp_path / "src"
+    source_directory.mkdir()
+
+    (source_directory / "client.py").write_text(
+        """
+import requests
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = analyze_python_reachability(
+        project_path=str(tmp_path),
+        package_name="requests",
+    )
+
+    assert result.usage_found is True
+    assert result.reachability == "likely"
+    assert result.dependency_type == "direct"
+    assert "pyproject.toml" in (
+        result.dependency_evidence[0]
+    )
