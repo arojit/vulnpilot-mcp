@@ -1,30 +1,49 @@
 flowchart TD
-    A["Cursor, Claude, VS Code or MCP Inspector"]
-    B["VulnPilot MCP Server"]
+    A["MCP Client\nCursor · Claude · VS Code · MCP Inspector"]
+    B(["🛡️ VulnPilot MCP Server"])
 
-    subgraph vcheck["check_package flow"]
-        C["OSV API"]
-        D["Normalized vulnerabilities"]
-        E["EPSS API"]
-        F["CISA KEV Catalog"]
-        G["Priority engine"]
-        H["Enriched PackageCheckResult"]
+    subgraph tools["Tools"]
+        direction TB
 
-        C --> D
-        D -->|"CVE batch query"| E
-        D -->|"CVE catalog lookup"| F
-        E --> G
-        F --> G
-        G -->|"KEV, EPSS, reachability and scope"| H
+        subgraph vcheck["check_package"]
+            C["OSV API"]
+            D["Normalized vulnerabilities"]
+            E["EPSS API"]
+            F["CISA KEV Catalog"]
+            G["Priority engine"]
+            H["Enriched PackageCheckResult"]
+
+            C --> D
+            D -->|"CVE batch query"| E
+            D -->|"CVE catalog lookup"| F
+            E --> G
+            F --> G
+            G -->|"KEV, EPSS, reachability and scope"| H
+        end
+
+        subgraph reach["analyze_reachability"]
+            I["Project source files"]
+            J["Import scanner\nPython · JavaScript · Java"]
+            L["Dependency classifier\nManifests · Lock files · Dependency trees"]
+            K["ReachabilityResult\nproduction / test-only / not found\ndirect / transitive / unknown"]
+
+            I --> J
+            I --> L
+            J --> K
+            L -->|"dependency_type + evidence"| K
+        end
     end
 
-    subgraph reach["analyze_*_reachability flow"]
-        I["Project source files"]
-        J["Import scanner\nPython · JavaScript · Java"]
-        K["ReachabilityResult\nproduction / test-only / not found"]
+    subgraph prompts["Prompts"]
+        P1["security_audit\nFull multi-dependency audit workflow"]
+        P2["triage_vulnerability\nSingle-dependency deep-dive triage"]
+        P3["generate_dependency_evidence\nShell commands for lock / tree files"]
+    end
 
-        I --> J
-        J --> K
+    subgraph resources["Resources"]
+        R1["vulnpilot://supported-ecosystems\nJSON — ecosystems, formats, tools"]
+        R2["vulnpilot://triage-rules\nMarkdown — priority engine rules"]
+        R3["vulnpilot://dependency-evidence-guide\nMarkdown — per-ecosystem setup commands"]
     end
 
     A <-->|"MCP over STDIO"| B
@@ -32,3 +51,14 @@ flowchart TD
     H --> B
     B -->|"project_path + package_name"| I
     K --> B
+    B -.- prompts
+    B -.- resources
+
+    %% ── Styling ─────────────────────────────────────────────────
+    style B fill:#1e3a5f,stroke:#14293f,stroke-width:3px,color:#ffffff,font-weight:bold
+    style A fill:#f5f6f8,stroke:#9ca3af,color:#1f2937
+    style tools fill:#f0f4f8,stroke:#94a3b8,color:#334155
+    style vcheck fill:#f8fafc,stroke:#cbd5e1,color:#475569
+    style reach fill:#f8fafc,stroke:#cbd5e1,color:#475569
+    style prompts fill:#faf5ff,stroke:#c4b5d0,color:#4a3660
+    style resources fill:#f0fdf4,stroke:#a7c4b5,color:#1a3a2a
