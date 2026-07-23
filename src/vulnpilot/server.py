@@ -3,10 +3,17 @@ from textwrap import dedent
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
-from vulnpilot.models import PackageCheckResult, Ecosystem
+from vulnpilot.models import (
+    PackageCheckResult,
+    PackageReport,
+    Ecosystem,
+    DependencyScope,
+    ReachabilityResult,
+    ReportOutput,
+)
 from vulnpilot.osv_client import normalize_vulnerability, query_osv
-from vulnpilot.models import DependencyScope, ReachabilityResult
 from vulnpilot.triage import assign_priorities
+from vulnpilot.report_generator import build_report
 
 from vulnpilot.reachability import (
     analyze_python_reachability as run_python_reachability,
@@ -26,11 +33,24 @@ from vulnpilot.epss_client import (
 mcp = FastMCP(
     "VulnPilot",
     instructions=(
-        "Use check_package whenever the user asks about "
-        "known vulnerabilities in a specific dependency version. "
-        "Use analyze_reachability to determine whether a package "
-        "is actually imported in a project's source code. "
-        "Supported ecosystems are PyPI, npm, Maven, and Gradle."
+        "VulnPilot audits open-source dependencies for known "
+        "vulnerabilities, analyzes reachability, and generates "
+        "actionable security reports.\n\n"
+        "SINGLE PACKAGE: Use check_package when the user asks "
+        "about a specific dependency version.\n\n"
+        "FULL PROJECT AUDIT: When the user asks to audit an "
+        "entire project, first read its manifest or lock file "
+        "(pyproject.toml, requirements.txt, uv.lock, poetry.lock, "
+        "package.json, package-lock.json, pom.xml, build.gradle) "
+        "to extract all dependencies and versions. Then call "
+        "check_package for each dependency. For any vulnerable "
+        "package, call analyze_reachability with the project path "
+        "to determine whether it is used in production code, "
+        "test-only, or not imported at all.\n\n"
+        "REPORT: After scanning, call generate_report with the "
+        "aggregated results to produce a polished HTML security "
+        "report saved to the project directory.\n\n"
+        "Supported ecosystems: PyPI, npm, Maven, and Gradle."
     ),
 )
 
@@ -186,6 +206,47 @@ def analyze_reachability(
         project_path=project_path,
         package_name=package_name,
         import_names=import_names,
+    )
+
+
+@mcp.tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    }
+)
+def generate_report(
+    results: list[PackageReport],
+    project_name: str = "Project",
+    ecosystem: Ecosystem = "PyPI",
+    output_dir: str = ".vulnpilot",
+) -> ReportOutput:
+    """Generate a polished HTML security report from scan results.
+
+    Accepts aggregated results from check_package and
+    analyze_reachability, and produces a self-contained HTML
+    report with executive summary, sortable vulnerability table,
+    risk gauge, and actionable recommendations.
+
+    The report is saved to disk and the path is returned.
+
+    Args:
+        results: List of PackageReport objects, each combining
+            a PackageCheckResult with an optional
+            ReachabilityResult.
+        project_name: Human-readable project name for the
+            report header.
+        ecosystem: One of PyPI, npm, Maven, or Gradle.
+        output_dir: Directory to save the report into.
+            Created if it does not exist.
+    """
+    return build_report(
+        packages=results,
+        project_name=project_name,
+        ecosystem=ecosystem,
+        output_dir=output_dir,
     )
 
 

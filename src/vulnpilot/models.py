@@ -138,3 +138,29 @@ class ReachabilityResult(BaseModel):
     limitations: list[str] = Field(
         default_factory=list
     )
+
+
+class PackageReport(BaseModel):
+    """Per-package input for report generation.
+
+    Combines the vulnerability check result with optional
+    reachability analysis data.
+    """
+
+    check_result: PackageCheckResult
+    reachability: ReachabilityResult | None = None
+    dependency_scope: DependencyScope = "unknown"
+
+
+class ReportOutput(BaseModel):
+    """Structured result returned by generate_report."""
+
+    report_html: str
+    report_path: str
+    total_packages: int
+    vulnerable_packages: int
+    total_vulnerabilities: int
+    immediate_count: int = 0
+    urgent_count: int = 0
+    high_count: int = 0
+    normal_count: int = 0
