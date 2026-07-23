@@ -129,6 +129,14 @@ Add to your `.vscode/mcp.json`:
 
 > **Note:** Replace `/absolute/path/to/uv` with the absolute path to your `uv` binary (find it with `which uv`) and `/absolute/path/to/vulnpilot-mcp` with the actual path where you cloned the repository.
 
+> **Troubleshooting – SSL certificate errors:** If you see SSL/TLS errors (common on corporate networks or machines with custom root CAs), add `--system-certs` to the `run` command so that `uv` uses your operating system's certificate store:
+> ```json
+> "args": [
+>   "--directory", "/absolute/path/to/vulnpilot-mcp",
+>   "run", "--system-certs", "vulnpilot-mcp"
+> ]
+> ```
+
 ---
 
 ## How It Works
